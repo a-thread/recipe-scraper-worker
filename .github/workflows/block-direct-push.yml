@@ -1,0 +1,26 @@
+name: Prevent Direct Push to Main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  reject-direct-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if commit is from a pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha
+            });
+
+            if (pr.data.length === 0) {
+              core.setFailed("❌ This commit was pushed directly to main. Use a pull request.");
+            } else {
+              console.log("✅ Commit is associated with a pull request.");
+            }
