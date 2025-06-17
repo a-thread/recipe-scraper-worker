@@ -1,0 +1,6 @@
+name = "recipe-scraper"
+main = "src/index.ts"
+compatibility_date = "2025-06-16"
+
+# Enables Buffer, util, stream, etc. used by Cheerio + uuid
+compatibility_flags = ["nodejs_compat"]

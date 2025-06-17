@@ -11,6 +11,8 @@
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
+		"@types/cheerio": "^0.22.35",
+		"@types/uuid": "^10.0.0",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
 		"wrangler": "^4.20.0"
