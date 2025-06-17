@@ -1,27 +1,55 @@
+# .github/workflows/deploy.yml
 name: Deploy to Cloudflare Workers
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
+env:
+  ALLOWED_DIRECT_PUSHERS: ${{ secrets.ALLOWED_DIRECT_PUSHERS }}
+
 jobs:
-  deploy:
+  guard:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Reject direct pushes from non-allowed users
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const allowed = process.env.ALLOWED_DIRECT_PUSHERS
+              .split(',')
+              .map(u => u.trim().toLowerCase());
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+            // If the pusher is on the allow-list, let the job succeed.
+            if (allowed.includes(context.actor.toLowerCase())) {
+              console.log(`✅ Direct push allowed for ${context.actor}`);
+              return;
+            }
+
+            // Check whether this commit is part of a pull request.
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              commit_sha: context.sha
+            });
+
+            if (prs.data.length === 0) {
+              core.setFailed(`❌ Direct pushes to main are not allowed for ${context.actor}. Please open a PR.`);
+            } else {
+              console.log("✅ Commit is associated with a pull request.");
+            }
+
+  deploy:
+    needs: guard
+    if: ${{ needs.guard.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Publish with Wrangler
-        run: npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - run: npm ci
+      - run: npx wrangler deploy
